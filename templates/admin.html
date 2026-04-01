@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard | e-Cycle Analytics</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* --- ADMIN THEME --- */
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; margin: 0; }
+        nav { background: linear-gradient(to right, #1a237e, #283593) !important; padding: 15px 40px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+
+        /* --- STATS CARDS --- */
+        .stats-container { display: flex; justify-content: space-between; gap: 20px; width: 90%; margin: 30px auto; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; width: 30%; box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; border-left: 6px solid #ccc; }
+        .stat-info h3 { margin: 0; font-size: 32px; color: #333; }
+        .card-total { border-color: #1a237e; }
+        .card-pending { border-color: #ff9800; }
+        .card-recycled { border-color: #4caf50; }
+
+        /* --- ANALYTICS GRID --- */
+        .analytics-grid { display: flex; width: 90%; margin: 0 auto 30px auto; gap: 20px; }
+        .chart-box { background: white; padding: 25px; border-radius: 15px; flex: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center; }
+
+        /* --- TABLE SECTION --- */
+        .table-section { width: 90%; margin: 0 auto 50px auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background-color: #f8f9fa; color: #444; padding: 15px; border-bottom: 2px solid #ddd; text-align: left; }
+        td { padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; color: white; text-transform: uppercase; }
+        .bg-pending { background: #ff9800; }
+        .bg-recycled { background: #4caf50; }
+        .bg-scheduled { background: #2196f3; }
+
+        .btn-action { text-decoration: none; padding: 7px 14px; border-radius: 6px; font-size: 12px; display: inline-block; margin-right: 5px; transition: 0.3s; }
+        .btn-pickup { background-color: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+        .btn-recycle { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="font-size: 20px; font-weight: bold;"><i class="fas fa-chart-pie"></i> e-Cycle ADMIN ANALYTICS</div>
+    <a href="/logout" style="color:white; text-decoration:none; background: rgba(255,255,255,0.2); padding: 7px 20px; border-radius: 25px;">Logout</a>
+</nav>
+
+<div class="stats-container">
+    <div class="stat-card card-total">
+        <div class="stat-info"><h3 id="top-total">0</h3><p>Total Submissions</p></div>
+        <i class="fas fa-database fa-2x" style="color: #1a237e; opacity: 0.2;"></i>
+    </div>
+    <div class="stat-card card-pending">
+        <div class="stat-info"><h3 id="top-pending">0</h3><p>Active Requests</p></div>
+        <i class="fas fa-truck-loading fa-2x" style="color: #ff9800; opacity: 0.2;"></i>
+    </div>
+    <div class="stat-card card-recycled">
+        <div class="stat-info"><h3 id="top-recycled">0</h3><p>Total Saved Items</p></div>
+        <i class="fas fa-leaf fa-2x" style="color: #4caf50; opacity: 0.2;"></i>
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <div class="chart-box">
+        <h4 style="margin-bottom: 20px;"><i class="fas fa-chart-pie"></i> Waste Distribution (%)</h4>
+        <canvas id="wastePieChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h4 style="margin-bottom: 20px;"><i class="fas fa-chart-line"></i> Service Efficiency Trend</h4>
+        <canvas id="serviceLineChart"></canvas>
+    </div>
+</div>
+
+<div class="table-section">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3><i class="fas fa-table"></i> Management Database</h3>
+        <input type="text" id="adminSearch" placeholder="Search item or user..." style="padding: 10px; border-radius: 8px; border: 1px solid #ddd; width: 250px;">
+    </div>
+    <table id="adminTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Contributor</th>
+                <th>Device (AI Identified)</th>
+                <th>Status</th>
+                <th>Quick Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in requests %}
+            <tr class="data-row">
+                <td>#{{ req['id'] }}</td>
+                <td style="font-weight: 600;">{{ req['username'] }}</td>
+                <td>{{ req['item_name'] }} <span style="font-size: 11px; color: #888;">(x{{ req['quantity'] }})</span></td>
+                <td><span class="badge bg-{{ req['status'].lower() }} status-label">{{ req['status'] }}</span></td>
+                <td>
+                    <a href="/update_status/{{ req['id'] }}/Scheduled" class="btn-action btn-pickup">Schedule</a>
+                    <a href="/update_status/{{ req['id'] }}/Recycled" class="btn-action btn-recycle">Complete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // --- 1. Fetch Data from Backend ---
+        const pieLabels = JSON.parse('{{ pie_labels | safe }}');
+        const pieValues = JSON.parse('{{ pie_values | safe }}');
+        const lineLabels = JSON.parse('{{ line_labels | safe }}');
+        const lineValues = JSON.parse('{{ line_values | safe }}');
+
+        // Update Top Cards
+        const rows = document.querySelectorAll(".data-row");
+        let recycledCount = 0;
+        rows.forEach(row => {
+            if(row.querySelector(".status-label").innerText.trim() === 'Recycled') recycledCount++;
+        });
+        document.getElementById('top-total').innerText = rows.length;
+        document.getElementById('top-recycled').innerText = recycledCount;
+        document.getElementById('top-pending').innerText = rows.length - recycledCount;
+
+        // --- 2. PIE CHART: Waste Distribution ---
+        new Chart(document.getElementById('wastePieChart'), {
+            type: 'pie',
+            data: {
+                labels: pieLabels,
+                datasets: [{
+                    data: pieValues,
+                    backgroundColor: ['#1a237e', '#4caf50', '#ff9800', '#9c27b0'],
+                    borderWidth: 2
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        // --- 3. LINE CHART: Service Trend ---
+        new Chart(document.getElementById('serviceLineChart'), {
+            type: 'line',
+            data: {
+                labels: lineLabels,
+                datasets: [{
+                    label: 'Items Count',
+                    data: lineValues,
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 5
+                }]
+            },
+            options: { 
+                responsive: true, 
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

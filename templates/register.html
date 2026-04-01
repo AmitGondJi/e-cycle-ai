@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join e-Cycle | Smart Eco Registration</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Eco-Green Gradient consistent with login */
+            background: linear-gradient(-45deg, #1b5e20, #2e7d32, #1b5e20, #43a047);
+            background-size: 400% 400%;
+            animation: gradientMove 12s ease infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Floating Eco Icons */
+        .shape {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.1);
+            font-size: 80px;
+            animation: float 8s infinite ease-in-out;
+            z-index: 0;
+        }
+        .shape1 { top: 10%; left: 5%; }
+        .shape2 { bottom: 10%; right: 5%; animation-delay: 2s; }
+        .shape3 { top: 15%; right: 15%; font-size: 40px; animation-delay: 4s; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(15deg); }
+        }
+
+        /* Glassmorphism Card */
+        .register-card {
+            width: 420px;
+            padding: 40px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            color: white;
+            text-align: center;
+            z-index: 1;
+            animation: fadeIn 0.8s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        h2 { font-size: 26px; font-weight: 600; margin-bottom: 5px; color: #fff; }
+        p { font-size: 13px; opacity: 0.8; margin-bottom: 25px; }
+
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { font-size: 12px; margin-left: 10px; opacity: 0.9; }
+
+        input {
+            width: 100%;
+            padding: 12px 18px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #a5d6a7;
+            box-shadow: 0 0 10px rgba(165, 214, 167, 0.4);
+        }
+
+        /* Password Strength Rules Note */
+        .rules-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            text-align: left;
+            margin: 15px 0;
+            border-left: 3px solid #a5d6a7;
+        }
+        .rules-box b { color: #a5d6a7; }
+
+        .signup-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 15px;
+            background: linear-gradient(90deg, #4caf50, #2e7d32);
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(46, 125, 50, 0.3);
+        }
+
+        .signup-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(46, 125, 50, 0.5);
+        }
+
+        .links { margin-top: 20px; font-size: 13px; }
+        .links a { color: #a5d6a7; text-decoration: none; font-weight: 600; }
+        .links a:hover { text-decoration: underline; }
+
+        ::placeholder { color: rgba(255, 255, 255, 0.6); }
+
+    </style>
+</head>
+<body>
+
+    <div class="shape shape1"><i class="fas fa-seedling"></i></div>
+    <div class="shape shape2"><i class="fas fa-recycle"></i></div>
+    <div class="shape shape3"><i class="fas fa-globe-americas"></i></div>
+
+    <div class="register-card">
+        <div style="font-size: 45px; margin-bottom: 10px;"><i class="fas fa-user-plus"></i></div>
+        
+        <h2>Create Account</h2>
+        <p>Start your journey towards a Greener Earth</p>
+        
+        <form method="POST">
+            <div class="input-group">
+                <label><i class="fas fa-id-badge"></i> Username</label>
+                <input type="text" name="username" placeholder="Enter unique username" required>
+            </div>
+            
+            <div class="input-group">
+                <label><i class="fas fa-key"></i> Secure Password</label>
+                <input type="password" name="password" 
+                       placeholder="••••••••" 
+                       pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" 
+                       required>
+            </div>
+
+            <div class="rules-box">
+                <b>🔒 Password Requirements:</b><br>
+                • Minimum 8 characters long<br>
+                • At least one uppercase & lowercase<br>
+                • At least one number (0-9)
+            </div>
+            
+            <button type="submit" class="signup-btn">Create Eco Profile ➔</button>
+        </form>
+
+        <div class="links">
+            Already a member? <a href="/login">Login Securely</a>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.createElement("canvas");
+        document.body.appendChild(canvas);
+        canvas.style.position = "fixed";
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+        canvas.style.zIndex = "-1";
+
+        const ctx = canvas.getContext("2d");
+        let width, height;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let particles = [];
+        for (let i = 0; i < 50; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                r: Math.random() * 2 + 1,
+                d: Math.random() * 0.5 + 0.2
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = "rgba(165, 214, 167, 0.2)";
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+                p.y -= p.d;
+                if (p.y < 0) p.y = height;
+            });
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+</body>
+</html>
