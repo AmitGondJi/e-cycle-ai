@@ -2,13 +2,35 @@ from flask import Flask, render_template, request, redirect, session, url_for, s
 import sqlite3
 import os
 import io
-import json # Data passing ke liye zaruri
+import json
 from fpdf import FPDF
 from werkzeug.utils import secure_filename
 from datetime import datetime
+# --- GOOGLE LOGIN IMPORTS ---
+from authlib.integrations.flask_client import OAuth
 
 app = Flask(__name__)
 app.secret_key = 'amit_project_key'
+
+# --- LOCAL TESTING FIX ---
+# Google Login ko bina HTTPS ke local machine par chalane ke liye
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+# ------------------ GOOGLE OAUTH CONFIG ------------------
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id='YOUR_GOOGLE_CLIENT_ID', # Apne Google Console se yahan dalo
+    client_secret='YOUR_GOOGLE_CLIENT_SECRET', # Apne Google Console se yahan dalo
+    access_token_url='https://accounts.google.com/o/oauth2/token',
+    access_token_params=None,
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    authorize_params=None,
+    api_base_url='https://www.googleapis.com/oauth2/v1/',
+    userinfo_endpoint='https://openidconnect.googleapis.com/v1/userinfo',
+    client_kwargs={'scope': 'openid email profile'},
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration'
+)
 
 # ------------------ PATH CONFIG ------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,14 +65,13 @@ def init_db():
                       quantity INTEGER, 
                       address TEXT, 
                       status TEXT,
-                      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''') # Analysis ke liye timestamp
+                      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
         conn.commit()
         conn.close()
         print("Database Ready!")
 
 init_db()
 
-# AI detection logic wahi rakha hai...
 def ai_smart_detect(filename):
     filename = filename.lower()
     if 'laptop' in filename: return "Laptop (Detected via AI)"
@@ -59,7 +80,36 @@ def ai_smart_detect(filename):
     elif 'mouse' in filename: return "Mouse (Detected via AI)"
     else: return "Electronic Gadget (Unknown Type)"
 
-# ================= ROUTES =================
+# ================= GOOGLE LOGIN ROUTES =================
+
+@app.route('/login/google')
+def google_login():
+    redirect_uri = url_for('google_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/login/callback')
+def google_callback():
+    token = google.authorize_access_token()
+    resp = google.get('userinfo')
+    user_info = resp.json()
+    email = user_info['email']
+    
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (email,)).fetchone()
+    
+    if not user:
+        conn.execute('INSERT INTO users (username, password, points) VALUES (?, ?, 0)', (email, 'google_auth_user'))
+        conn.commit()
+        user = conn.execute('SELECT * FROM users WHERE username = ?', (email,)).fetchone()
+    conn.close()
+
+    session.clear()
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+    session['role'] = 'student'
+    return redirect(url_for('dashboard'))
+
+# ================= STANDARD ROUTES =================
 
 @app.route('/')
 def home():
@@ -133,23 +183,11 @@ def add_request():
         return redirect(url_for('dashboard'))
     return render_template('add_request.html')
 
-# ---------------- ADMIN PANEL (UPDATED WITH ANALYTICS) ----------------
 @app.route('/admin')
 def admin_panel():
-    if session.get('role') != 'admin':
-        return redirect(url_for('login'))
-
+    if session.get('role') != 'admin': return redirect(url_for('login'))
     conn = get_db_connection()
-    
-    # All Requests Table
-    all_requests = conn.execute('''
-        SELECT requests.*, users.username 
-        FROM requests 
-        JOIN users ON requests.user_id = users.id
-        ORDER BY requests.id DESC
-    ''').fetchall()
-
-    # --- PIE CHART DATA (Waste Distribution) ---
+    all_requests = conn.execute('SELECT requests.*, users.username FROM requests JOIN users ON requests.user_id = users.id ORDER BY requests.id DESC').fetchall()
     laptops = conn.execute("SELECT COUNT(*) FROM requests WHERE item_name LIKE '%Laptop%'").fetchone()[0]
     mobiles = conn.execute("SELECT COUNT(*) FROM requests WHERE item_name LIKE '%Mobile%'").fetchone()[0]
     keyboards = conn.execute("SELECT COUNT(*) FROM requests WHERE item_name LIKE '%Keyboard%'").fetchone()[0]
@@ -157,25 +195,15 @@ def admin_panel():
     
     pie_labels = ["Laptops", "Mobiles", "Keyboards", "Others"]
     pie_values = [laptops, mobiles, keyboards, others]
-
-    # --- LINE GRAPH DATA (Growth - Last 7 Days Mock/Logic) ---
-    # Isme hum 'Pending' vs 'Recycled' ka trend bhi dikha sakte hain
+    
     total_recycled = conn.execute("SELECT COUNT(*) FROM requests WHERE status = 'Recycled'").fetchone()[0]
     total_pending = conn.execute("SELECT COUNT(*) FROM requests WHERE status = 'Pending'").fetchone()[0]
-    
-    line_labels = ["Total Requests", "Successfully Recycled", "Awaiting Pickup"]
+    line_labels = ["Total Requests", "Recycled", "Pending"]
     line_values = [len(all_requests), total_recycled, total_pending]
-
     conn.close()
 
-    return render_template('admin.html', 
-                           requests=all_requests,
-                           pie_labels=json.dumps(pie_labels),
-                           pie_values=json.dumps(pie_values),
-                           line_labels=json.dumps(line_labels),
-                           line_values=json.dumps(line_values))
+    return render_template('admin.html', requests=all_requests, pie_labels=json.dumps(pie_labels), pie_values=json.dumps(pie_values), line_labels=json.dumps(line_labels), line_values=json.dumps(line_values))
 
-# Status update aur download certificate routes wahi hain...
 @app.route('/update_status/<int:req_id>/<string:new_status>')
 def update_status(req_id, new_status):
     if session.get('role') != 'admin': return redirect(url_for('login'))
@@ -199,30 +227,47 @@ def download_certificate(req_id):
     data = conn.execute('SELECT requests.*, users.username FROM requests JOIN users ON requests.user_id = users.id WHERE requests.id = ? AND requests.user_id = ?', (req_id, session['user_id'])).fetchone()
     conn.close()
     if not data or data['status'] != 'Recycled': return "Not available"
+
     pdf = FPDF(orientation='L', unit='mm', format='A4')
     pdf.add_page()
-    pdf.rect(10, 10, 277, 190)
-    pdf.set_font("Arial", 'B', 30)
-    pdf.cell(0, 40, "E-WASTE RECYCLING CERTIFICATE", ln=True, align='C')
-    pdf.set_font("Arial", size=15)
-    pdf.cell(0, 10, f"Awarded to: {data['username'].upper()}", ln=True, align='C')
-    pdf.multi_cell(0, 10, f"For responsibly recycling {data['item_name']}. You saved the environment!", align='C')
-    pdf_output = pdf.output(dest='S').encode('latin-1')
-    return send_file(io.BytesIO(pdf_output), mimetype='application/pdf', as_attachment=True, download_name='Certificate.pdf')
+    pdf.set_draw_color(46, 125, 50)
+    pdf.set_line_width(2)
+    pdf.rect(10, 10, 277, 190) 
+    pdf.set_line_width(0.5)
+    pdf.rect(13, 13, 271, 184)
+    pdf.ln(20)
+    pdf.set_font("Arial", 'B', 35)
+    pdf.set_text_color(46, 125, 50)
+    pdf.cell(0, 20, "CERTIFICATE OF RECYCLING", ln=True, align='C')
+    pdf.set_font("Arial", 'I', 15)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, "This is to certify that", ln=True, align='C')
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 28)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 15, data['username'].upper(), ln=True, align='C')
+    pdf.ln(5)
+    pdf.set_font("Arial", size=14)
+    pdf.set_text_color(50, 50, 50)
+    pdf.multi_cell(0, 10, f"has successfully contributed to environmental sustainability by\nresponsibly recycling {data['item_name']}.", align='C')
+    
+    # Impact Badge Fix
+    pdf.ln(10)
+    pdf.set_fill_color(232, 245, 233)
+    pdf.set_text_color(27, 94, 32)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_x(98.5) 
+    pdf.cell(100, 12, "OFFICIAL ECO-WARRIOR STATUS", ln=True, align='C', fill=True)
 
-@app.route('/profile', methods=['GET', 'POST'])
-def profile():
-    if session.get('role') != 'student': return redirect(url_for('login'))
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    if request.method == 'POST':
-        new_password = request.form.get('password')
-        conn.execute('UPDATE users SET password = ? WHERE id = ?', (new_password, session['user_id']))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('dashboard'))
-    conn.close()
-    return render_template('profile.html', user=user)
+    pdf.set_y(160)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_x(30)
+    pdf.cell(0, 10, f"Date: {datetime.now().strftime('%d-%m-%Y')}", ln=0)
+    pdf.set_x(200)
+    pdf.cell(0, 10, "Authorized by e-Cycle AI", ln=1)
+
+    pdf_output = pdf.output(dest='S').encode('latin-1')
+    return send_file(io.BytesIO(pdf_output), mimetype='application/pdf', as_attachment=True, download_name='eCycle_Certificate.pdf')
 
 @app.route('/logout')
 def logout():

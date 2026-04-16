@@ -112,27 +112,6 @@
 
         .impact-card:hover { transform: translateY(-15px) scale(1.03); background: #fff; }
 
-        /* --- NOTIFICATION TOAST --- */
-        #eco-toast {
-            visibility: hidden;
-            min-width: 250px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 10px;
-            padding: 16px;
-            position: fixed;
-            z-index: 3000;
-            left: 30px;
-            bottom: 30px;
-            font-size: 14px;
-        }
-
-        #eco-toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
-
         /* --- BUTTONS --- */
         .ai-btn {
             background: #111;
@@ -165,11 +144,48 @@
         .status-badge { padding: 8px 18px; border-radius: 50px; font-size: 11px; font-weight: 700; }
         .status-recycled { background: #e8f5e9; color: #2e7d32; }
         .status-pending { background: #fff3e0; color: #ef6c00; }
+
+        /* --- MODAL STYLE --- */
+        #rewardModal {
+            display:none; 
+            position:fixed; 
+            top:0; left:0; 
+            width:100%; height:100%; 
+            background:rgba(0,0,0,0.7); 
+            z-index:3000; 
+            justify-content:center; 
+            align-items:center;
+            backdrop-filter: blur(5px);
+        }
     </style>
 </head>
 <body>
 
-    <div id="eco-toast">🌿 New eco-tip available!</div>
+    <div id="rewardModal">
+        <div style="background:white; padding:30px; border-radius:30px; width:90%; max-width:400px; text-align:center; position:relative;">
+            <span onclick="closeRewards()" style="position:absolute; top:20px; right:20px; cursor:pointer; font-size:24px; color:#999;">&times;</span>
+            <div style="font-size: 50px; margin-bottom: 15px;">🏆</div>
+            <h2 style="color:var(--primary-green);">Eco-Rewards</h2>
+            <p style="margin-bottom:25px; color:#666;">Current Balance: <strong>{{ points }} pts</strong></p>
+            
+            <div style="text-align:left; display: flex; flex-direction: column; gap: 12px;">
+                <div style="padding:15px; border:1px solid #f0f0f0; border-radius:15px; display:flex; justify-content:space-between; align-items:center; background: #fafafa;">
+                    <div>
+                        <div style="font-weight: 600;">Amazon ₹100 Gift Card</div>
+                        <div style="font-size: 11px; color: #888;">Requires 500 points</div>
+                    </div>
+                    <button style="padding:8px 15px; border-radius:10px; border:none; background: #ddd; cursor: not-allowed;">Redeem</button>
+                </div>
+                <div style="padding:15px; border:1px solid #e8f5e9; border-radius:15px; display:flex; justify-content:space-between; align-items:center; background: #f1f8e9;">
+                    <div>
+                        <div style="font-weight: 600; color: var(--primary-green);">Eco-Warrior Badge</div>
+                        <div style="font-size: 11px; color: #666;">Unlocked at 50 points</div>
+                    </div>
+                    <i class="fas fa-check-circle" style="color: var(--primary-green); font-size: 20px;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="side-settings" id="sidePanel">
         <div class="profile-header">
@@ -183,24 +199,24 @@
             <p><i class="fas fa-map-marker-alt"></i> <b>Location:</b> Delhi, India</p>
             <p><i class="fas fa-medal"></i> <b>Rank:</b> Eco-Expert</p>
         </div>
-        <button onclick="toggleSettings()" style="width: 100%; padding: 10px; border: none; border-radius: 10px; background: #ddd; cursor: pointer;">Close</button>
+        <button onclick="toggleSettings()" style="width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary-green); color: white; cursor: pointer; margin-top: 20px;">Close Settings</button>
     </div>
 
     <nav>
         <span style="font-size: 22px; font-weight: 700;">♻️ e-Cycle <span style="color: #a5d6a7;">AI</span></span>
         
-        <div style="display: flex; align-items: center; gap: 20px;">
+        <div style="display: flex; align-items: center; gap: 25px;">
             <a href="/dashboard" style="color:white; text-decoration:none;"><i class="fas fa-home"></i> Home</a>
-            <a href="#" style="color:white; text-decoration:none;"><i class="fas fa-gift"></i> Rewards</a>
+            <a href="javascript:void(0)" onclick="openRewards()" style="color:white; text-decoration:none;"><i class="fas fa-gift"></i> Rewards</a>
             
-            <i class="fas fa-bell" onclick="showToast('You have 3 items awaiting recycling!')" style="cursor: pointer; position: relative;">
-                <span style="position: absolute; top: -5px; right: -5px; background: red; border-radius: 50%; width: 8px; height: 8px;"></span>
+            <i class="fas fa-bell" style="cursor: pointer; position: relative;">
+                <span style="position: absolute; top: -5px; right: -5px; background: #ffeb3b; border-radius: 50%; width: 8px; height: 8px;"></span>
             </i>
 
-            <div style="border-left: 1px solid rgba(255,255,255,0.3); height: 25px; margin: 0 10px;"></div>
+            <div style="border-left: 1px solid rgba(255,255,255,0.3); height: 25px; margin: 0 5px;"></div>
 
             <span style="font-weight: 500; cursor: pointer;" onclick="toggleSettings()">👤 {{ name }}</span>
-            <a href="/logout" style="color:white; text-decoration:none; border: 2px solid rgba(255,255,255,0.4); padding: 8px 20px; border-radius: 25px; font-size: 13px; transition: 0.3s;">Logout</a>
+            <a href="/logout" style="color:white; text-decoration:none; border: 1px solid rgba(255,255,255,0.5); padding: 6px 15px; border-radius: 25px; font-size: 12px;">Logout</a>
         </div>
     </nav>
 
@@ -228,19 +244,48 @@
         </div>
     </div>
 
+    <div class="content-box" style="background: linear-gradient(135deg, #ffffff 0%, #f1f8e9 100%); border-left: 6px solid var(--primary-green);">
+        <h3 style="color: var(--primary-green); margin-bottom: 25px;">
+            <i class="fas fa-seedling"></i> Understanding Your Eco-Impact
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px;">
+            <div style="background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <h4 style="color: #2e7d32; margin-top: 0;"><i class="fas fa-mountain"></i> Stop Mining</h4>
+                <p style="font-size: 13px; color: #555; line-height: 1.6;">
+                    Metals in gadgets require massive mining, which leads to <b>deforestation</b>. By recycling, we reuse existing metals and keep forests safe.
+                </p>
+            </div>
+
+            <div style="background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <h4 style="color: #f39c12; margin-top: 0;"><i class="fas fa-plug"></i> Save Watts</h4>
+                <p style="font-size: 13px; color: #555; line-height: 1.6;">
+                    Making a new phone from scratch uses <b>10x more energy</b> than recovering materials from an old one. Every bit counts!
+                </p>
+            </div>
+
+            <div style="background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <h4 style="color: #34495e; margin-top: 0;"><i class="fas fa-globe-americas"></i> Cool the Earth</h4>
+                <p style="font-size: 13px; color: #555; line-height: 1.6;">
+                    Recycling reduces industrial smoke and waste in landfills, which prevents <b>Global Warming</b>. You're a Climate Hero!
+                </p>
+            </div>
+        </div>
+    </div>
+
     <div style="text-align: center; margin: 60px 0;">
         <a href="/add_request" class="ai-btn"><i class="fas fa-expand"></i> Start AI Scan</a>
     </div>
 
     <div class="content-box">
-        <h3 style="margin-bottom: 30px;"><i class="fas fa-chart-line" style="color: var(--primary-green);"></i> Recycling History</h3>
-        <table style="width: 100%; border-collapse: collapse;">
+        <h3 style="margin-bottom: 30px;"><i class="fas fa-history" style="color: var(--primary-green);"></i> Recycling History</h3>
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
             <thead>
-                <tr style="border-bottom: 2px solid #eee; text-align: left;">
+                <tr style="border-bottom: 2px solid #eee; color: #666; font-size: 14px;">
                     <th style="padding: 15px;">Item Details</th>
                     <th>Quantity</th>
-                    <th>Current Status</th>
-                    <th>Recognition</th>
+                    <th>Status</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -251,11 +296,11 @@
                     <td><span class="status-badge status-{{ req['status'].lower() }}">{{ req['status'] }}</span></td>
                     <td>
                         {% if req['status'] == 'Recycled' %}
-                            <a href="/download_certificate/{{ req['id'] }}" class="download-link" onclick="fireConfetti()">
-                                <i class="fas fa-medal"></i> Download Certificate
+                            <a href="/download_certificate/{{ req['id'] }}" style="color: var(--primary-green); text-decoration: none; font-weight: 600;" onclick="fireConfetti()">
+                                <i class="fas fa-medal"></i> Get Certificate
                             </a>
                         {% else %}
-                            <span style="color: #bbb;"><i class="fas fa-hourglass-half"></i> Awaiting Disposal</span>
+                            <span style="color: #bbb; font-size: 13px;">Processing...</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -265,25 +310,15 @@
     </div>
 
     <script>
-        // 1. SETTINGS PANEL TOGGLE
-        function toggleSettings() {
-            document.getElementById('sidePanel').classList.toggle('active');
-        }
+        function toggleSettings() { document.getElementById('sidePanel').classList.toggle('active'); }
+        
+        function openRewards() { document.getElementById('rewardModal').style.display = 'flex'; }
+        function closeRewards() { document.getElementById('rewardModal').style.display = 'none'; }
 
-        // 2. TOAST NOTIFICATION
-        function showToast(msg) {
-            var x = document.getElementById("eco-toast");
-            x.innerText = msg;
-            x.className = "show";
-            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
-        }
-
-        // 3. CONFETTI
         function fireConfetti() {
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#2e7d32', '#4caf50', '#a5d6a7'] });
         }
 
-        // 4. ANIMATED NUMBERS
         const pCounter = document.getElementById('userPoints');
         const target = +pCounter.getAttribute('data-target');
         
@@ -293,7 +328,7 @@
 
         let count = 0;
         function updateCounter() {
-            const inc = target / 80;
+            const inc = target / 60;
             if(count < target) {
                 count += inc;
                 pCounter.innerText = Math.ceil(count);
@@ -302,8 +337,11 @@
         }
         updateCounter();
 
-        // Auto-show notification after 2 seconds
-        setTimeout(() => { showToast("Welcome back! Ready to save some trees? 🌳"); }, 2000);
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            let modal = document.getElementById('rewardModal');
+            if (event.target == modal) { modal.style.display = "none"; }
+        }
     </script>
 </body>
 </html>
