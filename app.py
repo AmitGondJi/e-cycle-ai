@@ -6,30 +6,9 @@ import json
 from fpdf import FPDF
 from werkzeug.utils import secure_filename
 from datetime import datetime
-# --- GOOGLE LOGIN IMPORTS ---
-from authlib.integrations.flask_client import OAuth
 
 app = Flask(__name__)
 app.secret_key = 'amit_project_key'
-
-
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
-# ------------------ GOOGLE OAUTH CONFIG ------------------
-oauth = OAuth(app)
-google = oauth.register(
-    name='google',
-    client_id='YOUR_GOOGLE_CLIENT_ID',
-    client_secret='YOUR_GOOGLE_CLIENT_SECRET', 
-    access_token_url='https://accounts.google.com/o/oauth2/token',
-    access_token_params=None,
-    authorize_url='https://accounts.google.com/o/oauth2/auth',
-    authorize_params=None,
-    api_base_url='https://www.googleapis.com/oauth2/v1/',
-    userinfo_endpoint='https://openidconnect.googleapis.com/v1/userinfo',
-    client_kwargs={'scope': 'openid email profile'},
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration'
-)
 
 # ------------------ PATH CONFIG ------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -79,35 +58,6 @@ def ai_smart_detect(filename):
     elif 'mouse' in filename: return "Mouse (Detected via AI)"
     else: return "Electronic Gadget (Unknown Type)"
 
-# ================= GOOGLE LOGIN ROUTES =================
-
-@app.route('/login/google')
-def google_login():
-    redirect_uri = url_for('google_callback', _external=True)
-    return google.authorize_redirect(redirect_uri)
-
-@app.route('/login/callback')
-def google_callback():
-    token = google.authorize_access_token()
-    resp = google.get('userinfo')
-    user_info = resp.json()
-    email = user_info['email']
-    
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (email,)).fetchone()
-    
-    if not user:
-        conn.execute('INSERT INTO users (username, password, points) VALUES (?, ?, 0)', (email, 'google_auth_user'))
-        conn.commit()
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (email,)).fetchone()
-    conn.close()
-
-    session.clear()
-    session['user_id'] = user['id']
-    session['username'] = user['username']
-    session['role'] = 'student'
-    return redirect(url_for('dashboard'))
-
 # ================= STANDARD ROUTES =================
 
 @app.route('/')
@@ -123,12 +73,14 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
+        # Admin Bypass
         if role == "admin" and username == "admin" and password == "admin123":
             session.clear()
             session['role'] = 'admin'
             session['username'] = 'Admin'
             return redirect(url_for('admin_panel'))
 
+        # Student Login
         if role == "student":
             conn = get_db_connection()
             user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password)).fetchone()
@@ -148,9 +100,13 @@ def register():
         username = request.form['username']
         password = request.form['password']
         conn = get_db_connection()
-        conn.execute('INSERT INTO users (username, password, points) VALUES (?, ?, 0)', (username, password))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute('INSERT INTO users (username, password, points) VALUES (?, ?, 0)', (username, password))
+            conn.commit()
+        except:
+            return "Username already exists! <a href='/register'>Try Again</a>"
+        finally:
+            conn.close()
         return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -160,9 +116,8 @@ def dashboard():
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
     reqs = conn.execute('SELECT * FROM requests WHERE user_id = ? ORDER BY id DESC', (session['user_id'],)).fetchall()
-    leaderboard = conn.execute('SELECT username, points FROM users ORDER BY points DESC LIMIT 3').fetchall()
     conn.close()
-    return render_template('dashboard.html', requests=reqs, name=session['username'], points=user['points'], leaderboard=leaderboard)
+    return render_template('dashboard.html', requests=reqs, name=session['username'], points=user['points'])
 
 @app.route('/add_request', methods=['GET', 'POST'])
 def add_request():
@@ -187,6 +142,8 @@ def admin_panel():
     if session.get('role') != 'admin': return redirect(url_for('login'))
     conn = get_db_connection()
     all_requests = conn.execute('SELECT requests.*, users.username FROM requests JOIN users ON requests.user_id = users.id ORDER BY requests.id DESC').fetchall()
+    
+    # Pie Chart Logic
     laptops = conn.execute("SELECT COUNT(*) FROM requests WHERE item_name LIKE '%Laptop%'").fetchone()[0]
     mobiles = conn.execute("SELECT COUNT(*) FROM requests WHERE item_name LIKE '%Mobile%'").fetchone()[0]
     keyboards = conn.execute("SELECT COUNT(*) FROM requests WHERE item_name LIKE '%Keyboard%'").fetchone()[0]
@@ -197,7 +154,7 @@ def admin_panel():
     
     total_recycled = conn.execute("SELECT COUNT(*) FROM requests WHERE status = 'Recycled'").fetchone()[0]
     total_pending = conn.execute("SELECT COUNT(*) FROM requests WHERE status = 'Pending'").fetchone()[0]
-    line_labels = ["Total Requests", "Recycled", "Pending"]
+    line_labels = ["Total", "Recycled", "Pending"]
     line_values = [len(all_requests), total_recycled, total_pending]
     conn.close()
 
@@ -225,6 +182,7 @@ def download_certificate(req_id):
     conn = get_db_connection()
     data = conn.execute('SELECT requests.*, users.username FROM requests JOIN users ON requests.user_id = users.id WHERE requests.id = ? AND requests.user_id = ?', (req_id, session['user_id'])).fetchone()
     conn.close()
+    
     if not data or data['status'] != 'Recycled': return "Not available"
 
     pdf = FPDF(orientation='L', unit='mm', format='A4')
@@ -250,7 +208,7 @@ def download_certificate(req_id):
     pdf.set_text_color(50, 50, 50)
     pdf.multi_cell(0, 10, f"has successfully contributed to environmental sustainability by\nresponsibly recycling {data['item_name']}.", align='C')
     
-    # Impact Badge Fix
+    # Impact Badge
     pdf.ln(10)
     pdf.set_fill_color(232, 245, 233)
     pdf.set_text_color(27, 94, 32)
