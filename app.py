@@ -12,16 +12,15 @@ from authlib.integrations.flask_client import OAuth
 app = Flask(__name__)
 app.secret_key = 'amit_project_key'
 
-# --- LOCAL TESTING FIX ---
-# Google Login ko bina HTTPS ke local machine par chalane ke liye
+
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 # ------------------ GOOGLE OAUTH CONFIG ------------------
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
-    client_id='YOUR_GOOGLE_CLIENT_ID', # Apne Google Console se yahan dalo
-    client_secret='YOUR_GOOGLE_CLIENT_SECRET', # Apne Google Console se yahan dalo
+    client_id='YOUR_GOOGLE_CLIENT_ID',
+    client_secret='YOUR_GOOGLE_CLIENT_SECRET', 
     access_token_url='https://accounts.google.com/o/oauth2/token',
     access_token_params=None,
     authorize_url='https://accounts.google.com/o/oauth2/auth',
