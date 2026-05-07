@@ -221,7 +221,7 @@ def download_certificate(req_id):
     pdf.set_x(30)
     pdf.cell(0, 10, f"Date: {datetime.now().strftime('%d-%m-%Y')}", ln=0)
     pdf.set_x(200)
-    pdf.cell(0, 10, "Authorized by e-Cycle AI", ln=1)
+    pdf.cell(0, 10, "Authorized by e-waste optimization", ln=1)
 
     pdf_output = pdf.output(dest='S').encode('latin-1')
     return send_file(io.BytesIO(pdf_output), mimetype='application/pdf', as_attachment=True, download_name='eCycle_Certificate.pdf')
